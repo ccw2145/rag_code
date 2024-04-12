@@ -73,7 +73,7 @@ logged_chain_info = rag_studio.log_model(code_path=chain_notebook_path, config_p
 
 # Optionally, tag the run to save any additional metadata
 with mlflow.start_run(run_id=logged_chain_info.run_id):
-  mlflow.set_tag(key="your_custom_tag", value="info_about_chain")
+  mlflow.set_tag(key="removeafter", value="12/31/2024")
 
 # Save YAML config params to the Run for easy filtering / comparison later(requires experimental import)
 # ⚠️⚠️ 🐛🐛 Experimental features likely have bugs! 🐛🐛 ⚠️⚠️
@@ -193,45 +193,51 @@ ground_truth_example
 # Alternatively, you can create the evaluation dataset using Spark/SQL - it is simply an Delta Table with the above schema
 ############
 
-eval_dataset = [
-    {
-        "request_id": "sample_request_1",
-        "request": "What is ARES?",
-        # Expected retrieval context is optional, if not provided, RAG Studio will use LLM judge to assess each retrieved context
-        "expected_retrieval_context": [
-            {
-                        "chunk_id": "9517786ecadf3e0c75e3cd4ccefdced5",
-                        "doc_uri": "dbfs:/Volumes/rag/ericp_m1/matei_pdf/2311.09476.pdf",
-                        "content": "..."
+# eval_dataset = [
+#     {
+#         "request_id": "sample_request_1",
+#         "request": "What is DBSQL?",
+#         # Expected retrieval context is optional, if not provided, RAG Studio will use LLM judge to assess each retrieved context
+#         "expected_retrieval_context": [
+#             {
+#                         "chunk_id": "9517786ecadf3e0c75e3cd4ccefdced5",
+#                         "doc_uri": "dbfs:/Volumes/rag/ericp_m1/matei_pdf/2311.09476.pdf",
+#                         "content": "..."
                         
-                    },
-                    {
-                        "chunk_id": "e8825fe982f7fd190ad828a307d7f280",
-                        "doc_uri": "dbfs:/Volumes/rag/ericp_m1/matei_pdf/2311.09476.pdf",
-                        "content": "..."
+#                     },
+#                     {
+#                         "chunk_id": "e8825fe982f7fd190ad828a307d7f280",
+#                         "doc_uri": "dbfs:/Volumes/rag/ericp_m1/matei_pdf/2311.09476.pdf",
+#                         "content": "..."
                         
-                    },
-                    {
-                        "chunk_id": "e47b43c9c8f8ce11d78342c49ddbea07",
-                        "doc_uri": "dbfs:/Volumes/rag/ericp_m1/matei_pdf/2311.09476.pdf",
-                        "content": "..."
+#                     },
+#                     {
+#                         "chunk_id": "e47b43c9c8f8ce11d78342c49ddbea07",
+#                         "doc_uri": "dbfs:/Volumes/rag/ericp_m1/matei_pdf/2311.09476.pdf",
+#                         "content": "..."
                         
-                    }
-        ],
-        # Expected response is optional
-        "expected_response": "ARES is an Automated RAG Evaluation System for evaluating retrieval-augmented generation (RAG) systems along the dimensions of context relevance, answer faithfulness, and answer relevance. It uses synthetic training data to finetune lightweight LM judges to assess the quality of individual RAG components and utilizes a small set of human-annotated datapoints for prediction-powered inference (PPI) to mitigate potential prediction errors.",
-    }
-]
+#                     }
+#         ],
+#         # Expected response is optional
+#         "expected_response": "Databricks SQL provides general compute resources that are executed against the tables in the lakehouse. Databricks SQL is powered by SQL warehouses, offering scalable SQL compute resources decoupled from storage",
+#     }
+# ]
 
 ############
 # Turn the eval dataset into a Delta Table
 ############
-uc_catalog = "catalog"
-uc_schema = "schema"
+from pyspark.sql.functions import col
+uc_catalog = "cindy_demo_catalog"
+uc_schema = "rag_chatbot_dbdemos"
 eval_table_name = "sample_eval_set"
 eval_table_fqdn = f"{uc_catalog}.{uc_schema}.{eval_table_name}"
-
-df = spark.read.json(spark.sparkContext.parallelize(eval_dataset))
+df = spark.table(f"{uc_catalog}.{uc_schema}.evaluation_dataset")\
+                    .withColumnRenamed("id", "request_id")\
+                    .withColumn("request_id", col("request_id").cast("string"))\
+                    .withColumnRenamed("question", "request")\
+                    .withColumnRenamed("answer", "expected_response")\
+                    .sample(False, 0.2, seed=0).limit(15)\
+# df = spark.read.json(spark.sparkContext.parallelize(eval_dataset))
 df.write.format("delta").option("mergeSchema", "true").mode("overwrite").saveAsTable(
     eval_table_fqdn
 )
@@ -355,9 +361,9 @@ with mlflow.start_run(logged_chain_info.run_id):
   # Known issues: Can only be run once per run_id.
   # ⚠️⚠️ 🐛🐛 Experimental features likely have bugs! 🐛🐛 ⚠️⚠️
   ############
-  experimental_add_metrics_to_run(evaluation_results, evaluation_results.mlflow_run_id)
-  experimental_add_eval_outputs_to_run(evaluation_results, evaluation_results.mlflow_run_id)
-  experimental_add_eval_config_tags_to_run(evaluation_results, config_yml, evaluation_results.mlflow_run_id)
+  # experimental_add_metrics_to_run(evaluation_results, evaluation_results.mlflow_run_id)
+  # experimental_add_eval_outputs_to_run(evaluation_results, evaluation_results.mlflow_run_id)
+  # experimental_add_eval_config_tags_to_run(evaluation_results, config_yml, evaluation_results.mlflow_run_id)
 
 # COMMAND ----------
 
@@ -370,8 +376,8 @@ with mlflow.start_run(logged_chain_info.run_id):
 ############
 # To deploy the model, first register the chain from the MLflow Run as a Unity Catalog model.
 ############
-uc_catalog = "catalog"
-uc_schema = "schema"
+uc_catalog = "cindy_demo_catalog"
+uc_schema = "rag_chatbot_dbdemos"
 model_name = "pdf_bot"
 uc_model_fqdn = f"{uc_catalog}.{uc_schema}.{model_name}" 
 
@@ -402,3 +408,7 @@ deployments = rag_studio.list_deployments()
 for deployment in deployments:
   if deployment.model_name == uc_model_fqdn and deployment.model_version==uc_registered_chain_info.version:
     print(parse_deployment_info(deployment))
+
+# COMMAND ----------
+
+

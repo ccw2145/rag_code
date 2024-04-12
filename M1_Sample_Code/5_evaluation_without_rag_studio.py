@@ -77,6 +77,10 @@ dbutils.widgets.text("schema", defaultValue="schema")
 catalog = dbutils.widgets.get("catalog")
 schema = dbutils.widgets.get("schema")
 
+catalog = "cindy_demo_catalog"
+schema = "rag_chatbot_dbdemos"
+eval_table_name = "sample_eval_set"
+
 
 # COMMAND ----------
 
@@ -169,8 +173,12 @@ for table in SAMPLE_DATASETS:
 
 # COMMAND ----------
 
-spark_bot_eval_dataset_with_ground_truth_table = f"{catalog}.{schema}.spark_bot_eval_dataset_with_ground_truth"
-display(spark.table(spark_bot_eval_dataset_with_ground_truth_table))
+# spark_bot_eval_dataset_with_ground_truth_table = f"{catalog}.{schema}.spark_bot_eval_dataset_with_ground_truth"
+# display(spark.table(spark_bot_eval_dataset_with_ground_truth_table))
+
+catalog = "cindy_demo_catalog"
+schema = "rag_chatbot_dbdemos"
+eval_table_name = "sample_eval_set"
 
 
 # COMMAND ----------
@@ -190,8 +198,26 @@ display(spark.table(spark_bot_eval_dataset_with_ground_truth_table))
 
 # COMMAND ----------
 
-spark_bot_v1_answer_sheet_table = f"{catalog}.{schema}.spark_bot_v1_answer_sheet"
-display(spark.table(spark_bot_v1_answer_sheet_table))
+# spark_bot_v1_answer_sheet_table = f"{catalog}.{schema}.spark_bot_v1_answer_sheet"
+# display(spark.table(spark_bot_v1_answer_sheet_table))
+
+catalog = "cindy_demo_catalog"
+schema = "rag_chatbot_dbdemos"
+eval_table_name = "sample_eval_set"
+
+import mlflow
+os.environ['DATABRICKS_TOKEN'] = dbutils.secrets.get("cindy_demos", "e2_demo")
+model_name = f"{catalog}.{schema}.dbdemos_advanced_chatbot_model"
+model_version_to_evaluate = get_latest_model_version(model_name)
+mlflow.set_registry_uri("databricks-uc")
+rag_model = mlflow.langchain.load_model(f"models:/{model_name}/{model_version_to_evaluate}")
+
+@pandas_udf("string")
+def predict_answer(questions):
+    def answer_question(question):
+        dialog = {"messages": [{"role": "user", "content": question}]}
+        return rag_model.invoke(dialog)['result']
+    return questions.apply(answer_question)
 
 # COMMAND ----------
 

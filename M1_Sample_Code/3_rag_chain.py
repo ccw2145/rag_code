@@ -9,13 +9,14 @@
 # COMMAND ----------
 
 # Before logging this chain using the driver notebook, you need to comment out this line.
-dbutils.library.restartPython() 
+# dbutils.library.restartPython() 
 
 # COMMAND ----------
 
 # DBTITLE 1,Import packages
 from langchain_community.chat_models import ChatDatabricks
 from langchain_community.vectorstores import DatabricksVectorSearch
+from langchain_community.embeddings import DatabricksEmbeddings
 from databricks.vector_search.client import VectorSearchClient
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -60,9 +61,11 @@ vector_search_schema = rag_config.get("vector_search_schema")
 ############
 # Turn the Vector Search index into a LangChain retriever
 ############
+embedding_model = DatabricksEmbeddings(endpoint=vector_search_schema.get("embedding_model"))
 vector_search_as_retriever = DatabricksVectorSearch(
     vs_index,
     text_column=vector_search_schema.get("chunk_text"),
+    embedding=embedding_model,
     columns=[
         vector_search_schema.get("primary_key"),
         vector_search_schema.get("chunk_text"),
@@ -131,7 +134,7 @@ model_input_sample = {
     "messages": [
         {
             "role": "user",
-            "content": "What is ARES?",
+            "content": "How to track Databricks billing?",
         }
     ]
 }

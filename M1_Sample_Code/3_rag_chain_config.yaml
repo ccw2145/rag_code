@@ -1,15 +1,19 @@
-vector_search_endpoint_name: "vs_endpoint_name"
-vector_search_index: "catalog.schema.index_name"
+vector_search_endpoint_name: "dbdemos_vs_endpoint"
+vector_search_index: "cindy_demo_catalog.rag_chatbot_dbdemos.databricks_pdf_documentation_self_managed_vs_index"
 # These must be set to use the Review App
 vector_search_schema:
-  primary_key: chunk_id
-  chunk_text: chunked_text
-  document_source: doc_uri
+  primary_key: id
+  chunk_text: content
+  document_source: url
+  embedding_model: "databricks-bge-large-en"
 vector_search_parameters:
   k: 3
 chunk_template: "`{chunk_text}`\n"
 chat_endpoint: "databricks-dbrx-instruct"
-chat_prompt_template: "You are a trusted assistant that helps answer questions about academic research based only on the provided information. If you do not know the answer to a question, you truthfully say you do not know.  Here is some context which might or might not help you answer: {context}.  Answer directly, do not repeat the question, do not start with something like: the answer to the question, do not add AI in front of your answer, do not say: here is the answer, do not mention the context or the question. Based on this history and context, answer this question: {question}."
+# chat_prompt_template: "You are a trusted assistant that helps answer questions about academic research based only on the provided information. If you do not know the answer to a question, you truthfully say you do not know.  Here is some context which might or might not help you answer: {context}.  Answer directly, do not repeat the question, do not start with something like: the answer to the question, do not add AI in front of your answer, do not say: here is the answer, do not mention the context or the question. Based on this history and context, answer this question: {question}."
+
+chat_prompt_template: "You are an assistant for Databricks users. You are answering python, coding, SQL, data engineering, spark, data science, DW and platform, API or infrastructure administration question related to Databricks. If the question is not related to one of these topics, kindly decline to answer. If you don't know the answer, just say that you don't know, don't try to make up an answer. Keep the answer as concise as possible. Use the following pieces of context to answer the question at the end: {context} Question: {question} Answer: "
+
 chat_prompt_template_variables:
   - "context"
   - "question"
